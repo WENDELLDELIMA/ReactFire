@@ -1,137 +1,117 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, Keyboard } from 'react-native';
-import api from './src/services/api';
-import {useState, useRef} from 'react'
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, Button, FlatList, ActivityIndicator} from 'react-native';
+import firebase from './src/services/firebaseConnection';
+import Listagem from './src/Listagem';
 
+console.disableYellowBox=true;
 
-export default function App() {
+export default function App(){
+  const [nome, setNome] = useState('');
+  const [cargo, setCargo] = useState('');
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [cep, setCep] = useState('');
-  const [cepUser, setCepUser] = useState(null);
-  const inputRef = useRef(null);
-  function clear(){
-    setCep('');
-    setCepUser(null);
-    inputRef.current.focus();
-  }
-  async function search(){
-    if(cep == ''){
-      alert('Digite um CEP valido!')
-      return;
+  useEffect(()=> {
+
+    async function dados(){
+
+      await firebase.database().ref('usuarios').on('value', (snapshot)=> {
+        setUsuarios([]);
+
+        snapshot.forEach((chilItem) => {
+          let data = {
+            key: chilItem.key,
+            nome: chilItem.val().nome,
+            cargo: chilItem.val().cargo
+          };
+
+          setUsuarios(oldArray => [...oldArray, data].reverse());
+        })
+
+        setLoading(false);
+
+      })
+
     }
-    try {
-      const response = await api.get(`/${cep}/json`);
 
-      console.log(response.data)
-      setCepUser(response.data);
+    dados();
 
-      Keyboard.dismiss();
-      
-    } catch (error) {
-      console.log('DEU RUIM:' + error)
+
+  }, []);
+
+
+
+  async function cadastrar(){
+    if(nome !== '' & cargo !== ''){
+      let usuarios = await firebase.database().ref('usuarios');
+      let chave = usuarios.push().key;
+
+      usuarios.child(chave).set({
+        nome: nome,
+        cargo: cargo
+      });
+
+      alert('Cadastrado com sucesso!');
+      setCargo('');
+      setNome('');
     }
-    
   }
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={{alignItems:'center'}}>
-        <Text style={styles.text}>Digite o CEP:</Text>
-        <TextInput 
-          style={styles.input}
-          placeholder='Ex: 79003241'
-          value={cep}
-          onChangeText={ (texto) => setCep(texto)}
-          keyboardType='numeric'
-          ref={inputRef}
-          
+
+  return(
+    <View style={styles.container}>
+      <Text style={styles.texto}>Nome</Text>
+      <TextInput
+      style={styles.input}
+      underlineColorAndroid="transparent"
+      onChangeText={(texto) => setNome(texto) }
+      value={nome}
+      />
+
+      <Text style={styles.texto}>Cargo</Text>
+      <TextInput
+      style={styles.input}
+      underlineColorAndroid="transparent"
+      onChangeText={(texto) => setCargo(texto) }
+      value={cargo}
+      />
+
+      <Button
+      title="Novo funcionario"
+      onPress={cadastrar}
+      />
+
+      {loading ? 
+      (
+        <ActivityIndicator color="#121212" size={45} />
+      ) :
+      (
+        <FlatList
+        keyExtractor={item => item.key}
+        data={usuarios}
+        renderItem={ ({item}) => ( <Listagem data={item} /> )  }
         />
-      </View>
-      <View style={styles.areaBtn}>
-      <TouchableOpacity style={[styles.botao, {backgroundColor:'red'}]}
-          onPress={clear}
-        >
-          <Text style={styles.botaoText}>Limpar</Text>
-        </TouchableOpacity>
+      )
+      }
 
 
-        <TouchableOpacity style={[styles.botao, {backgroundColor:'blue'}]}
-          onPress={search}
-        >
-          <Text style={styles.botaoText}>Buscar</Text>
-        </TouchableOpacity>
-
-        
-      </View>
-
-    { cepUser &&
-    
-    <View style={styles.conteudo}>
-    <Text style={styles.conteudoText}> CEP: {cepUser.cep}</Text>
-    <Text style={styles.conteudoText}> Logradouro: {cepUser.logradouro}</Text>
-    <Text style={styles.conteudoText}> Bairro: {cepUser.bairro}</Text>
-    <Text style={styles.conteudoText}> Cidade: {cepUser.localidade}</Text>
-    <Text style={styles.conteudoText}> Estado: {cepUser.uf}</Text>
-  </View>
-    
-    
-    }
-    
-
-
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  
+  container:{
+    flex:1,
+    margin: 10,
+  },
+  texto: {
+    fontSize: 20,
   },
   input:{
-    backgroundColor:'#FFF',
-    borderWidth:1,
-    borderColor:'#ddd',
-    borderRadius:3,
-    width:'90%',
-    padding:25,
-    fontSize:18
-
-  },
-  text:{
-    marginTop:25,
-    marginBottom:25,
-    fontSize:25,
-    fontWeight:'bold'
-
-  },
-  areaBtn:{
-    marginTop:15,
-    
-    alignItems: 'center',
-    flexDirection:'row', 
-    justifyContent:'space-around'
-  },
-
-  botaoText:{
-    fontSize:15,
-    fontWeight:'bold',
-    color:'white'
-  },
-  botao:{
- 
-    padding:15,
-    borderRadius:5,
-    height:50,
-    alignItems:'center'
-    
-  },
-  conteudo:{
-    flex:1,
-    justifyContent:'center',
-    alignItems:'center'
-  },
-  conteudoText:{
-    fontSize:17
+    marginBottom: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#121212',
+    height: 45,
+    fontSize: 17
   }
 });
