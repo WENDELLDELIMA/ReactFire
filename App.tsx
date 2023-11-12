@@ -1,117 +1,139 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, FlatList, ActivityIndicator} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View,
+   Text,
+   StyleSheet, SafeAreaView, TextInput, TouchableOpacity, FlatList, Keyboard} from 'react-native';
+import Login from './src/components/Login';
+import TaskList from './src/components/TaskList';
 import firebase from './src/services/firebaseConnection';
-import Listagem from './src/Listagem';
-
-console.disableYellowBox=true;
 
 export default function App(){
-  const [nome, setNome] = useState('');
-  const [cargo, setCargo] = useState('');
-  const [usuarios, setUsuarios] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const[user, setUser] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [newTask, setNewTask] = useState('');
 
-  useEffect(()=> {
-
-    async function dados(){
-
-      await firebase.database().ref('usuarios').on('value', (snapshot)=> {
-        setUsuarios([]);
-
-        snapshot.forEach((chilItem) => {
-          let data = {
-            key: chilItem.key,
-            nome: chilItem.val().nome,
-            cargo: chilItem.val().cargo
-          };
-
-          setUsuarios(oldArray => [...oldArray, data].reverse());
-        })
-
-        setLoading(false);
-
-      })
-
-    }
-
-    dados();
-
-
-  }, []);
-
-
-
-  async function cadastrar(){
-    if(nome !== '' & cargo !== ''){
-      let usuarios = await firebase.database().ref('usuarios');
-      let chave = usuarios.push().key;
-
-      usuarios.child(chave).set({
-        nome: nome,
-        cargo: cargo
-      });
-
-      alert('Cadastrado com sucesso!');
-      setCargo('');
-      setNome('');
-    }
+useEffect(()=> {
+ function getUser(){
+  if(!user){
+    return
   }
-
-  return(
-    <View style={styles.container}>
-      <Text style={styles.texto}>Nome</Text>
-      <TextInput
-      style={styles.input}
-      underlineColorAndroid="transparent"
-      onChangeText={(texto) => setNome(texto) }
-      value={nome}
-      />
-
-      <Text style={styles.texto}>Cargo</Text>
-      <TextInput
-      style={styles.input}
-      underlineColorAndroid="transparent"
-      onChangeText={(texto) => setCargo(texto) }
-      value={cargo}
-      />
-
-      <Button
-      title="Novo funcionario"
-      onPress={cadastrar}
-      />
-
-      {loading ? 
-      (
-        <ActivityIndicator color="#121212" size={45} />
-      ) :
-      (
-        <FlatList
-        keyExtractor={item => item.key}
-        data={usuarios}
-        renderItem={ ({item}) => ( <Listagem data={item} /> )  }
-        />
-      )
+  firebase.database().ref('tarefas').child(user).once('value', (snapshot)=>{
+    setTasks([]);
+    snapshot.forEach((childItem)=>{
+      let data = {
+        key: childItem.key,
+        nome:childItem.val().nome
       }
+      setTasks(oldTasks => [...oldTasks, data])
+    })
+  })
+ }
 
+    getUser();
 
-    </View>
-  );
+},[user])
+
+function handleAdd(){
+  if(newTask === ''){
+    return
+  }else{
+    let tarefas = firebase.database().ref('tarefas').child(user);
+    let chave = tarefas.push().key;
+    tarefas.child(chave).set({
+      nome:newTask
+    })
+    .then(()=>{
+      const data = {
+        key:chave,
+        nome:newTask
+      };
+      setTasks(oldTasks => [...oldTasks, data])
+    })
+    setNewTask('');
+    Keyboard.dismiss();
+  }
 }
 
+function handleDelete(key){
+  firebase.database().ref('tarefas').child(user).child(key).remove()
+  .then(()=>{
+    const findTasks = tasks.filter( item => item.key !== key)
+    setTasks(findTasks)
+  })
+
+}
+
+function handleEdit(data){
+  console.log(data)
+}
+
+
+if(!user){
+  return <Login changeStatus={(user) => setUser(user)} />
+}else{
+
+
+  return(
+    <SafeAreaView style={styles.container}>
+    <View style={styles.container1}>
+      <TextInput
+      style={styles.input}
+      placeholder='o que vamos fazer?'
+      value={newTask}
+      onChangeText={(text) => setNewTask(text)}
+      />
+      <TouchableOpacity style={styles.buttonAdd} onPress={handleAdd}>
+      <Text style={styles.buttonAddText}>+</Text>
+
+      </TouchableOpacity>
+    </View>
+
+    <FlatList 
+    style={[{padding:12}]}
+    data={tasks}
+    keyExtractor={(item)=> item.key}
+    renderItem={({item}) =>(
+      <TaskList data={item} deleteItem={handleDelete} editItem={handleEdit}/>
+    )}
+    />
+  </SafeAreaView>
+  );
+}}
+
 const styles = StyleSheet.create({
+  container1:{
+    
+    paddingTop:40,
+    paddingHorizontal:10,
+    
+    flexDirection:'row'
+    
+  },
   container:{
     flex:1,
-    margin: 10,
-  },
-  texto: {
-    fontSize: 20,
+    backgroundColor:"#f2f6fc",
+    
   },
   input:{
-    marginBottom: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#121212',
-    height: 45,
-    fontSize: 17
+    flex:1,
+    marginBottom:10, 
+    padding:10,
+    backgroundColor:'#fff',
+    borderRadius:4,
+    height:46,
+    borderWidth:1,
+    borderColor:'#c4c4c4'
+  },
+  buttonAdd:{
+    backgroundColor:'#c4c4c4',
+    height:46,
+    justifyContent:'center',
+    alignItems:'center',
+    marginLeft:5,
+    paddingHorizontal:14
+  },
+  buttonAddText:{
+    color:'#fff',
+    fontSize:24
   }
+
 });
