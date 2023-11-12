@@ -17,16 +17,16 @@ export default function App() {
         return;
       }
       
-      // Registrar um ouvinte no nó 'tarefas' do usuário
+      // Registrar um ouvinte no nó 'tarefas' do usuáriod
       const tasksRef = firebase.database().ref(`tarefas/${user}`);
       
       tasksRef.on('child_removed', (removedTaskSnapshot) => {
-        // Quando um item é excluído, podemos remover o item correspondente da lista de tarefas
+        // Quando um item é excluído, podemos remover o item correspondente da lista de tarefasd
         const deletedKey = removedTaskSnapshot.key;
         setTasks((oldTasks) => oldTasks.filter((task) => task.key !== deletedKey));
       });
       
-      // Ler dados iniciais do banco de dados e definir as tarefas
+      // Ler dados iniciais do banco de dados e definir as tarefasd
       tasksRef.once('value', (snapshot) => {
         const tasksData = snapshot.val();
         if (tasksData) {
