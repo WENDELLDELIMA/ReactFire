@@ -6,31 +6,43 @@ import Login from './src/components/Login';
 import TaskList from './src/components/TaskList';
 import firebase from './src/services/firebaseConnection';
 
-export default function App(){
-  const[user, setUser] = useState(null);
+export default function App() {
+  const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
 
-useEffect(()=> {
- function getUser(){
-  if(!user){
-    return
-  }
-  firebase.database().ref('tarefas').child(user).once('value', (snapshot)=>{
-    setTasks([]);
-    snapshot.forEach((childItem)=>{
-      let data = {
-        key: childItem.key,
-        nome:childItem.val().nome
+  useEffect(() => {
+    function getUser() {
+      if (!user) {
+        return;
       }
-      setTasks(oldTasks => [...oldTasks, data])
-    })
-  })
- }
+      
+      // Registrar um ouvinte no nó 'tarefas' do usuário
+      const tasksRef = firebase.database().ref(`tarefas/${user}`);
+      
+      tasksRef.on('child_removed', (removedTaskSnapshot) => {
+        // Quando um item é excluído, podemos remover o item correspondente da lista de tarefas
+        const deletedKey = removedTaskSnapshot.key;
+        setTasks((oldTasks) => oldTasks.filter((task) => task.key !== deletedKey));
+      });
+      
+      // Ler dados iniciais do banco de dados e definir as tarefas
+      tasksRef.once('value', (snapshot) => {
+        const tasksData = snapshot.val();
+        if (tasksData) {
+          const tasksList = Object.keys(tasksData).map((key) => ({
+            key,
+            nome: tasksData[key].nome,
+          }));
+          setTasks(tasksList);
+        } else {
+          setTasks([]);
+        }
+      });
+    }
 
     getUser();
-
-},[user])
+  }, [user]);
 
 function handleAdd(){
   if(newTask === ''){
